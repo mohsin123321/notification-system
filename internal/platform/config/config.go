@@ -27,7 +27,8 @@ type UsersConfig struct {
 }
 
 type PostgresConfig struct {
-	DSN string `yaml:"dsn"`
+	DSN         string `yaml:"dsn"`
+	AutoMigrate bool   `yaml:"auto_migrate"`
 }
 
 type RabbitMQConfig struct {
@@ -53,7 +54,7 @@ func Default() *Config {
 		Gateway:  GatewayConfig{Addr: ":8080"},
 		Notifier: NotifierConfig{GRPCAddr: ":9090"},
 		Users:    UsersConfig{GRPCAddr: ":9091"},
-		Postgres: PostgresConfig{DSN: "postgres://notify:notify@localhost:5433/notifications?sslmode=disable"},
+		Postgres: PostgresConfig{DSN: "postgres://notify:notify@localhost:5433/notifications?sslmode=disable", AutoMigrate: true},
 		RabbitMQ: RabbitMQConfig{URL: "amqp://notify:notify@localhost:5672/"},
 	}
 }
