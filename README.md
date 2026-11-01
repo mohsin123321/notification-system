@@ -50,14 +50,14 @@ Three binaries:
 | Service communication | gRPC + Protocol Buffers (buf) |
 | Async messaging | RabbitMQ 3.13 (AMQP) |
 | In-app push | MQTT via RabbitMQ MQTT plugin |
-| Database | PostgreSQL 16 (pgx/v5) |
+| Database | PostgreSQL 16 (GORM + pgx/v5 driver) |
 | Observability | OpenTelemetry + Prometheus |
 
 ## Getting started
 
 ### Prerequisites
 
-- Go 1.22+
+- Go 1.26+
 - Docker & Docker Compose
 - [buf](https://buf.build/docs/installation) (proto generation)
 
@@ -108,7 +108,7 @@ This project is actively being built. Current progress:
 - [x] Step 1 — Foundation: repo layout, protos, docker-compose, lifecycle
 - [x] Step 2 — Domain model: pure types, port interfaces, policy functions
 - [x] Step 3 — Sync path: gateway → notifier → users over gRPC (in-memory)
-- [ ] Step 4 — Persistence + idempotency: Postgres, outbox table
+- [x] Step 4 — Persistence + idempotency: GORM models, Postgres repository, outbox pattern (wiring in progress)
 - [ ] Step 5 — Async delivery: RabbitMQ outbox relay, email + SMS workers
 - [ ] Step 6 — Reliability: retry tiers, DLQ, result events, status stream
 - [ ] Step 7 — In-app + MQTT: inapp-worker, device simulator (100 goroutines)
