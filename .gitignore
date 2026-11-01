@@ -3,9 +3,12 @@ bin/
 *.exe
 *.out
 
-# Environment
+# Environment — secrets stay out of git
 .env
 *.env.local
+
+# Local config overrides
+config.local.yaml
 
 # IDE
 .idea/

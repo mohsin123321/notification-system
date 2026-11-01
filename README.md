@@ -69,11 +69,7 @@ make infra-up
 
 Starts Postgres 16 and RabbitMQ 3.13 with the MQTT plugin enabled on port 1883.
 
-### Run database migrations
-
-```bash
-make migrate
-```
+Database tables are created automatically via GORM AutoMigrate when the notifier service starts.
 
 ### Regenerate proto
 

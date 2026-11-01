@@ -18,7 +18,10 @@ import (
 )
 
 func main() {
-	cfg := config.Default()
+	cfg, err := config.LoadConfigFromFlag()
+	if err != nil {
+		log.Fatalf("load config: %v", err)
+	}
 	logger := logging.New("info")
 	lm := lifecycle.NewManager()
 

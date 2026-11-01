@@ -1,10 +1,6 @@
 package config
 
-import (
-	"os"
-
-	"gopkg.in/yaml.v3"
-)
+import "fmt"
 
 type Config struct {
 	Gateway  GatewayConfig  `yaml:"gateway"`
@@ -27,34 +23,31 @@ type UsersConfig struct {
 }
 
 type PostgresConfig struct {
-	DSN         string `yaml:"dsn"`
+	Host        string `yaml:"host"`
+	Port        int    `yaml:"port"`
+	Name        string `yaml:"name"`
+	User        string `yaml:"user"`
+	Password    string `yaml:"password"`
 	AutoMigrate bool   `yaml:"auto_migrate"`
 }
 
+func (p PostgresConfig) DSN() string {
+	return fmt.Sprintf(
+		"host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
+		p.Host, p.Port, p.User, p.Password, p.Name,
+	)
+}
+
 type RabbitMQConfig struct {
-	URL string `yaml:"url"`
+	Host     string `yaml:"host"`
+	Port     int    `yaml:"port"`
+	Vhost    string `yaml:"vhost"`
+	User     string `yaml:"user"`
+	Password string `yaml:"password"`
 }
 
-func Load(path string) (*Config, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	var cfg Config
-	if err := yaml.NewDecoder(f).Decode(&cfg); err != nil {
-		return nil, err
-	}
-	return &cfg, nil
-}
-
-func Default() *Config {
-	return &Config{
-		Gateway:  GatewayConfig{Addr: ":8080"},
-		Notifier: NotifierConfig{GRPCAddr: ":9090"},
-		Users:    UsersConfig{GRPCAddr: ":9091"},
-		Postgres: PostgresConfig{DSN: "postgres://notify:notify@localhost:5433/notifications?sslmode=disable", AutoMigrate: true},
-		RabbitMQ: RabbitMQConfig{URL: "amqp://notify:notify@localhost:5672/"},
-	}
+func (r RabbitMQConfig) URL() string {
+	return fmt.Sprintf("amqp://%s:%s@%s:%d/%s",
+		r.User, r.Password, r.Host, r.Port, r.Vhost,
+	)
 }

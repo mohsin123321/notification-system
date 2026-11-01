@@ -1,6 +1,6 @@
 .PHONY: infra-up infra-down infra-reset proto \
         dev-gateway dev-users dev-notifier \
-        build migrate test test-race lint lint-fix
+        build test test-race lint lint-fix
 
 # Infrastructure
 infra-up:
@@ -32,10 +32,6 @@ build:
 	go build -o bin/gateway  ./cmd/gateway
 	go build -o bin/users    ./cmd/users
 	go build -o bin/notifier ./cmd/notifier
-
-# Database migrations
-migrate:
-	go run ./scripts/migrate
 
 # Tests
 test:

@@ -14,7 +14,10 @@ import (
 )
 
 func main() {
-	cfg := config.Default()
+	cfg, err := config.LoadConfigFromFlag()
+	if err != nil {
+		log.Fatalf("load config: %v", err)
+	}
 	lm := lifecycle.NewManager()
 
 	client, err := gatewayclient.New(cfg.Notifier.GRPCAddr)

@@ -30,7 +30,7 @@ func New(cfg *config.Config) *Postgres {
 func (p *Postgres) Name() string { return "postgres" }
 
 func (p *Postgres) Start() error {
-	db, err := gorm.Open(postgres.Open(p.cfg.DSN), &gorm.Config{
+	db, err := gorm.Open(postgres.Open(p.cfg.DSN()), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Warn),
 	})
 	if err != nil {
@@ -46,7 +46,7 @@ func (p *Postgres) Start() error {
 	}
 
 	p.db = db
-	log.Printf("postgres connected to %s", p.cfg.DSN)
+	log.Printf("postgres connected to %s:%d/%s", p.cfg.Host, p.cfg.Port, p.cfg.Name)
 
 	if p.cfg.AutoMigrate && len(migrationModels) > 0 {
 		if err := db.AutoMigrate(migrationModels...); err != nil {
