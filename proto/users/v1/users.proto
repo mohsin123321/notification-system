@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package users.v1;
+
+option go_package = "gitlab.com/hiwaymedia/notification/internal/gen/proto/users/v1;usersv1";
+
+service UsersService {
+  rpc GetPreferences(GetPreferencesRequest) returns (GetPreferencesResponse);
+  rpc RegisterDevice(RegisterDeviceRequest) returns (RegisterDeviceResponse);
+}
+
+message GetPreferencesRequest {
+  string user_id = 1;
+}
+
+message GetPreferencesResponse {
+  repeated ChannelPreference channels = 1;
+  QuietHours quiet_hours = 2;
+  string email   = 3;
+  string phone   = 4;
+}
+
+message ChannelPreference {
+  string channel = 1;
+  bool   enabled = 2;
+}
+
+message QuietHours {
+  bool   enabled    = 1;
+  string start_time = 2;
+  string end_time   = 3;
+  string timezone   = 4;
+}
+
+message RegisterDeviceRequest {
+  string user_id   = 1;
+  string device_id = 2;
+}
+
+message RegisterDeviceResponse {
+  string device_id = 1;
+  string user_id   = 2;
+}
