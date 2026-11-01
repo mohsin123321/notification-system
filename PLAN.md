@@ -323,12 +323,16 @@ DB migrations. `infra/postgres/` repository. Idempotency check in service. Outbo
 
 **Done when:** a repeated `POST` with the same `Idempotency-Key` header returns the same notification ID. DB rows exist with correct delivery statuses.
 
+**Tests:** unit tests for repository with testcontainers Postgres — `Save()` atomicity, `GetByIdempotencyKey()` returns existing on duplicate, UNIQUE constraint race test.
+
 ---
 
 ### Step 5 — Async Delivery
 `infra/rabbit/` publisher + consumer. Outbox worker. Email + sms workers with fake providers (log to stdout, configurable failure rate).
 
 **Done when:** a notification progresses `PENDING → QUEUED → SENT` visible in DB. Log shows "sent email to {address}".
+
+**Tests:** integration test with testcontainers Postgres + RabbitMQ — full end-to-end from `SendNotification` call to `SENT` delivery row. Outbox relay test: crash between publish and mark causes at-most-one-publish with idempotent worker.
 
 ---
 
@@ -337,6 +341,8 @@ Retry tiers, DLQ. Result events on `notification.events` exchange. Result worker
 
 **Done when:** a provider with 100% failure rate ends in `DEAD` after retries. The gRPC status stream shows every transition in order.
 
+**Tests:** integration test — provider set to 100% failure, assert delivery reaches `DEAD` after N attempts and lands in DLQ. Unit tests for `StatusWatcher` subscribe/publish/unsubscribe concurrency under `go test -race`.
+
 ---
 
 ### Step 7 — In-App + MQTT
@@ -344,12 +350,33 @@ inapp-worker (AMQP → amq.topic). Device simulator: 100 goroutines, MQTT QoS 1,
 
 **Done when:** an offline device goroutine receives all queued messages on reconnect. Badge count arrives immediately on a fresh connection.
 
+**Tests:** integration test — disconnect device, send 5 notifications, reconnect, assert all 5 arrive in order. Retained badge test: fresh connect receives current unread count without a new message.
+
 ---
 
 ### Step 8 — Hardening
 Priority queues (`q.email.high` / `q.email.low`). gRPC interceptors (logging, request ID). Graceful shutdown via lifecycle.Manager (SIGTERM/SIGINT). OpenTelemetry tracing across HTTP → gRPC → AMQP → worker. Prometheus metrics (queue depth, send latency, failures).
 
 **Done when:** one request shows as a single trace across gateway → notifier → users → email worker. `/metrics` returns queue depth and send latency.
+
+**Tests:** graceful shutdown test — SIGTERM while 10 in-flight messages, assert zero message loss. Priority test — send 100 marketing + 10 password_reset under load, assert password_reset finishes first.
+
+---
+
+### Step 9 — Integration Test Suite
+Full failure scenario coverage using `testcontainers-go` (Postgres + RabbitMQ). Each scenario from the failure table maps to one test.
+
+| Scenario | Test |
+|---|---|
+| Client retries request | Same notification ID returned, delivery count stays 1 |
+| Worker crashes mid-send | Redelivered message, no duplicate delivery |
+| Email provider errors | Status reaches `DEAD` after retries, DLQ has the message |
+| RabbitMQ down during send | Outbox holds rows, relay publishes on broker return |
+| users-service slow | gRPC deadline fires, API returns 503 |
+| Device offline | Messages queued, all delivered on reconnect |
+| 2 outbox relays running | Each outbox row published exactly once |
+
+**Done when:** `make test` is green. `make test-race` is green. All 7 scenarios pass against real containers.
 
 ---
 

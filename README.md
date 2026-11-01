@@ -117,6 +117,7 @@ This project is actively being built. Current progress:
 - [ ] Step 6 — Reliability: retry tiers, DLQ, result events, status stream
 - [ ] Step 7 — In-app + MQTT: inapp-worker, device simulator (100 goroutines)
 - [ ] Step 8 — Hardening: priorities, gRPC interceptors, graceful shutdown, OTel tracing, Prometheus metrics
+- [ ] Step 9 — Integration test suite: all 7 failure scenarios with testcontainers (Postgres + RabbitMQ)
 
 See [PLAN.md](PLAN.md) for the full architecture and design decisions.
 
