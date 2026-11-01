@@ -309,12 +309,23 @@ All `pure/` structs and free functions. All port interfaces. Zero infra imports 
 
 **Done when:** every pure function has a passing unit test. `go build ./internal/domain/...` has zero external imports outside stdlib.
 
+**Unit tests:**
+- `DecideChannels` — enabled channel, suppressed channel, critical type bypasses quiet hours, all channels suppressed
+- `NotificationType.Priority()` — transactional returns high, marketing returns low
+- `RoutingKey(channel, priority)` — correct AMQP routing key format
+- `Render(type, channel, payload)` — template renders expected output, missing key returns error
+
 ---
 
 ### Step 3 — Sync Path (in-memory)
 users-service with in-memory preferences. notification-service with in-memory repository. api-gateway HTTP → gRPC. No database, no queue.
 
 **Done when:** `POST /v1/notifications` returns 202 with a channel decision (active or suppressed) per channel.
+
+**Unit tests:**
+- HTTP handler — valid request returns 202, missing body returns 400, missing idempotency key returns 400
+- Notification service — `SendNotification` with mocked `PreferenceClient` and `NotificationRepository`, assert correct channels decided
+- Preference service — `GetPreferences` returns correct channel settings from in-memory store
 
 ---
 
@@ -323,7 +334,9 @@ DB migrations. `infra/postgres/` repository. Idempotency check in service. Outbo
 
 **Done when:** a repeated `POST` with the same `Idempotency-Key` header returns the same notification ID. DB rows exist with correct delivery statuses.
 
-**Tests:** unit tests for repository with testcontainers Postgres — `Save()` atomicity, `GetByIdempotencyKey()` returns existing on duplicate, UNIQUE constraint race test.
+**Unit tests:** idempotency check in service — mock repo returns existing notification on `GetByIdempotencyKey`, assert service returns it without calling `Save`.
+
+**Integration tests** (testcontainers Postgres): `Save()` writes notification + deliveries + outbox in one transaction, `GetByIdempotencyKey` returns existing on duplicate key, concurrent `Save` with same key — only one row created.
 
 ---
 
@@ -332,7 +345,12 @@ DB migrations. `infra/postgres/` repository. Idempotency check in service. Outbo
 
 **Done when:** a notification progresses `PENDING → QUEUED → SENT` visible in DB. Log shows "sent email to {address}".
 
-**Tests:** integration test with testcontainers Postgres + RabbitMQ — full end-to-end from `SendNotification` call to `SENT` delivery row. Outbox relay test: crash between publish and mark causes at-most-one-publish with idempotent worker.
+**Unit tests:**
+- Outbox worker — mock `PendingOutbox` returns rows, mock `Publisher` called once per row, mock `MarkOutboxPublished` called after publish
+- Email worker — fake provider with 0% failure rate, assert result event published with `SENT` status
+- SMS worker — same pattern as email worker
+
+**Integration tests** (testcontainers Postgres + RabbitMQ): full end-to-end `SendNotification` → `SENT` delivery row. Outbox relay crash test: publisher killed after publish but before mark — redelivery does not double-send.
 
 ---
 
@@ -341,7 +359,11 @@ Retry tiers, DLQ. Result events on `notification.events` exchange. Result worker
 
 **Done when:** a provider with 100% failure rate ends in `DEAD` after retries. The gRPC status stream shows every transition in order.
 
-**Tests:** integration test — provider set to 100% failure, assert delivery reaches `DEAD` after N attempts and lands in DLQ. Unit tests for `StatusWatcher` subscribe/publish/unsubscribe concurrency under `go test -race`.
+**Unit tests:**
+- `StatusWatcher` — subscribe, publish event, assert subscriber receives it; unsubscribe, assert no further events; concurrent subscribers under `go test -race`
+- Result worker — mock repo `UpdateDeliveryStatus` called with correct status on `SENT` event and `FAILED` event
+
+**Integration tests** (testcontainers): provider at 100% failure rate, assert delivery reaches `DEAD` after N attempts and message lands in DLQ. Status stream test: client streams `WatchNotificationStatus`, assert every transition arrives in order.
 
 ---
 
@@ -350,7 +372,11 @@ inapp-worker (AMQP → amq.topic). Device simulator: 100 goroutines, MQTT QoS 1,
 
 **Done when:** an offline device goroutine receives all queued messages on reconnect. Badge count arrives immediately on a fresh connection.
 
-**Tests:** integration test — disconnect device, send 5 notifications, reconnect, assert all 5 arrive in order. Retained badge test: fresh connect receives current unread count without a new message.
+**Unit tests:**
+- Inapp worker — assert AMQP publish uses correct routing key format `users.{userId}.notifications`
+- Device simulator — goroutine connects, receives message, disconnects cleanly
+
+**Integration tests** (RabbitMQ with MQTT plugin): disconnect device, send 5 notifications, reconnect, assert all 5 arrive in order. Retained badge: fresh connect receives current unread count without a new message being sent.
 
 ---
 
@@ -359,7 +385,11 @@ Priority queues (`q.email.high` / `q.email.low`). gRPC interceptors (logging, re
 
 **Done when:** one request shows as a single trace across gateway → notifier → users → email worker. `/metrics` returns queue depth and send latency.
 
-**Tests:** graceful shutdown test — SIGTERM while 10 in-flight messages, assert zero message loss. Priority test — send 100 marketing + 10 password_reset under load, assert password_reset finishes first.
+**Unit tests:**
+- Logging interceptor — assert request ID is set in outgoing context
+- `lifecycle.Manager` — start order, stop reverse order, stop called on all components even if one errors
+
+**Integration tests**: graceful shutdown — SIGTERM while 10 in-flight messages, assert zero message loss. Priority test — send 100 marketing + 10 password_reset concurrently, assert password_reset deliveries complete before marketing.
 
 ---
 
