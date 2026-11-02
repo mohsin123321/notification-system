@@ -1,0 +1,19 @@
+gateway:
+  addr: ":8080"
+
+notifier:
+  grpc_addr: ":9090"
+
+users:
+  grpc_addr: ":9091"
+
+postgres:
+  host: postgres
+  port: 5432
+  name: notifications
+  auto_migrate: true
+
+rabbitmq:
+  host: rabbitmq
+  port: 5672
+  vhost: /

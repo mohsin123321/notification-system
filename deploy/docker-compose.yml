@@ -1,4 +1,7 @@
 services:
+
+  # ── Infrastructure ──────────────────────────────────────────────────────────
+
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
@@ -26,6 +29,8 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: notify
       RABBITMQ_DEFAULT_PASS: notify
+    command: >
+      sh -c "rabbitmq-plugins enable rabbitmq_mqtt && rabbitmq-server"
     volumes:
       - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
       - rabbitmq_data:/var/lib/rabbitmq
@@ -34,6 +39,73 @@ services:
       interval: 10s
       timeout: 10s
       retries: 20
+
+  # ── Application services ────────────────────────────────────────────────────
+
+  users:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      args:
+        SERVICE: users
+    restart: unless-stopped
+    environment:
+      NOTIFY_USERS_GRPC_ADDR: ":9091"
+
+  notifier:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      args:
+        SERVICE: notifier
+    restart: unless-stopped
+    environment:
+      NOTIFY_NOTIFIER_GRPC_ADDR: ":9090"
+      NOTIFY_USERS_GRPC_ADDR: "users:9091"
+      NOTIFY_POSTGRES_HOST: postgres
+      NOTIFY_POSTGRES_PORT: "5432"
+      NOTIFY_RABBITMQ_HOST: rabbitmq
+      NOTIFY_RABBITMQ_PORT: "5672"
+      NOTIFY_RABBITMQ_USER: notify
+      NOTIFY_RABBITMQ_PASSWORD: notify
+      NOTIFY_POSTGRES_USER: notify
+      NOTIFY_POSTGRES_PASSWORD: notify
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      users:
+        condition: service_started
+
+  gateway:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      args:
+        SERVICE: gateway
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      NOTIFY_GATEWAY_ADDR: ":8080"
+      NOTIFY_NOTIFIER_GRPC_ADDR: "notifier:9090"
+    depends_on:
+      notifier:
+        condition: service_started
+
+  device-sim:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      args:
+        SERVICE: device-sim
+    restart: unless-stopped
+    environment:
+      MQTT_BROKER: "tcp://rabbitmq:1883"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
 
 volumes:
   postgres_data:

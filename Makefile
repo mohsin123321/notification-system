@@ -1,17 +1,27 @@
-.PHONY: infra-up infra-down infra-reset proto \
+.PHONY: up down logs infra-up infra-down infra-reset proto \
         dev-gateway dev-users dev-notifier \
         build test test-race lint lint-fix
 
-# Infrastructure
+# ── Full stack (all services) ─────────────────────────────────────────────────
+up:
+	docker compose -f deploy/docker-compose.yml up --build -d
+
+down:
+	docker compose -f deploy/docker-compose.yml down
+
+logs:
+	docker compose -f deploy/docker-compose.yml logs -f
+
+# ── Infrastructure only (Postgres + RabbitMQ) ────────────────────────────────
 infra-up:
-	docker compose -f deploy/docker-compose.yml up -d
+	docker compose -f deploy/docker-compose.yml up -d postgres rabbitmq
 
 infra-down:
 	docker compose -f deploy/docker-compose.yml down
 
 infra-reset:
 	docker compose -f deploy/docker-compose.yml down -v && \
-	docker compose -f deploy/docker-compose.yml up -d
+	docker compose -f deploy/docker-compose.yml up -d postgres rabbitmq
 
 # Proto generation
 proto:

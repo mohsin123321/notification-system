@@ -57,41 +57,120 @@ Three binaries:
 
 ### Prerequisites
 
-- Go 1.26+
 - Docker & Docker Compose
-- [buf](https://buf.build/docs/installation) (proto generation)
 
-### Run infrastructure
+That's it. No local Go install required to run the system.
+
+### Run everything
 
 ```bash
-make infra-up
+make up
 ```
 
-Starts Postgres 16 and RabbitMQ 3.13 with the MQTT plugin enabled on port 1883.
+Builds and starts all six services in Docker:
 
-Database tables are created automatically via GORM AutoMigrate when the notifier service starts.
+| Service | Port | Role |
+|---|---|---|
+| gateway | 8080 | HTTP entry point |
+| notifier | 9090 | Core gRPC service |
+| users | 9091 | Preferences gRPC service |
+| postgres | 5433 | Notification storage |
+| rabbitmq | 5672 / 1883 / 15672 | Message broker + MQTT |
+| device-sim | — | 100 simulated MQTT devices |
+
+First run copies `.env.example` → `.env` automatically. RabbitMQ management UI is at `http://localhost:15672` (user: `notify`, pass: `notify`).
+
+### Stop everything
+
+```bash
+make down
+```
+
+### Watch logs
+
+```bash
+make logs
+```
+
+---
+
+## Try it
+
+**1. Start the system:**
+```bash
+make up
+```
+
+**2. Send a notification** (wait ~10s for services to be ready):
+```bash
+curl -s -X POST http://localhost:8080/v1/notifications \
+  -H "Idempotency-Key: $(uuidgen)" \
+  -H "Content-Type: application/json" \
+  -d '{"user_id":"user-1","type":"new_episode","payload":{"title":"Episode 5"}}' | jq
+```
+
+**Response:**
+```json
+{
+  "notification_id": "a3f1c2d4-...",
+  "decisions": [
+    { "channel": "email",  "status": "PENDING" },
+    { "channel": "inapp",  "status": "PENDING" }
+  ]
+}
+```
+
+The gateway accepted the request, the notifier fetched user-1's preferences, decided email + in-app are enabled, and returned immediately.
+
+**3. Check the notifier logs:**
+```bash
+docker compose -f deploy/docker-compose.yml logs notifier
+```
+
+You'll see the channel routing decision logged per request.
+
+**4. Send the same request again** (same `Idempotency-Key`):
+```bash
+KEY=$(uuidgen)
+
+curl -s -X POST http://localhost:8080/v1/notifications \
+  -H "Idempotency-Key: $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"user_id":"user-1","type":"new_episode","payload":{"title":"Episode 5"}}' | jq .notification_id
+
+# Second call — returns the same ID, nothing is sent twice
+curl -s -X POST http://localhost:8080/v1/notifications \
+  -H "Idempotency-Key: $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"user_id":"user-1","type":"new_episode","payload":{"title":"Episode 5"}}' | jq .notification_id
+```
+
+Both calls return the **same** notification ID — idempotency working.
+
+> **Coming in Steps 5–7:** email worker logs (`sent email to user-1`), delivery status changing `PENDING → SENT`, and device-sim receiving the in-app message over MQTT.
+
+---
+
+## Development (without Docker)
+
+### Prerequisites
+
+- Go 1.26+
+- Docker & Docker Compose (for infra only)
+- [buf](https://buf.build/docs/installation) (proto regeneration only)
+
+```bash
+make infra-up        # start Postgres + RabbitMQ only
+
+make dev-users       # users-service on :9091
+make dev-notifier    # notifier on :9090
+make dev-gateway     # HTTP gateway on :8080
+```
 
 ### Regenerate proto
 
 ```bash
 make proto
-```
-
-### Run services
-
-```bash
-make dev-gateway    # HTTP gateway on :8080
-make dev-users      # users-service gRPC on :50052
-make dev-notifier   # notification-service gRPC on :50051
-```
-
-### Send a notification
-
-```bash
-curl -X POST http://localhost:8080/v1/notifications \
-  -H "Idempotency-Key: $(uuidgen)" \
-  -H "Content-Type: application/json" \
-  -d '{"user_id":"user-1","type":"new_episode","payload":{"title":"Episode 5"}}'
 ```
 
 ### Run tests

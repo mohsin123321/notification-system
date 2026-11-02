@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"os"
 	"sync"
 	"time"
 
@@ -24,10 +25,17 @@ func main() {
 	wg.Wait()
 }
 
+func mqttBroker() string {
+	if v := os.Getenv("MQTT_BROKER"); v != "" {
+		return v
+	}
+	return "tcp://localhost:1883"
+}
+
 func runDevice(i int) {
 	userID := fmt.Sprintf("user-%d", i%10)
 	deviceID := fmt.Sprintf("device-%d", i)
-	broker := "tcp://localhost:1883"
+	broker := mqttBroker()
 
 	for {
 		client := connect(deviceID, userID, broker)
