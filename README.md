@@ -78,7 +78,7 @@ Builds and starts all six services in Docker:
 | rabbitmq | 5672 / 1883 / 15672 | Message broker + MQTT |
 | device-sim | — | 100 simulated MQTT devices |
 
-First run copies `.env.example` → `.env` automatically. RabbitMQ management UI is at `http://localhost:15672` (user: `notify`, pass: `notify`).
+RabbitMQ management UI is at `http://localhost:15672` (user: `notify`, pass: `notify`).
 
 ### Stop everything
 
