@@ -1,0 +1,76 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go build *)",
+      "Bash(go test *)",
+      "Bash(go run *)",
+      "Bash(go vet *)",
+      "Bash(go mod *)",
+      "Bash(go generate *)",
+      "Bash(golangci-lint *)",
+      "Bash(make *)",
+      "Bash(buf *)",
+      "Bash(git status)",
+      "Bash(git log *)",
+      "Bash(git diff *)",
+      "Bash(git show *)",
+      "Bash(git branch)",
+      "Bash(git branch -a)",
+      "Bash(git fetch *)",
+      "Bash(git add *)",
+      "Bash(find *)",
+      "Bash(grep *)",
+      "Bash(ls *)"
+    ],
+    "ask": [
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(git merge *)",
+      "Bash(git rebase *)",
+      "Bash(git reset *)",
+      "Bash(git checkout *)",
+      "Bash(git cherry-pick *)",
+      "Bash(git tag *)",
+      "Bash(git stash *)",
+      "Bash(rm *)",
+      "Write",
+      "Bash(sudo *)",
+      "Bash(chmod *)",
+      "Bash(chown *)",
+      "Bash(kill *)",
+      "Bash(pkill *)",
+      "Bash(docker rm *)",
+      "Bash(docker rmi *)",
+      "Bash(docker stop *)",
+      "Bash(psql *)"
+    ],
+    "deny": [
+      "Bash(git push --force*)",
+      "Bash(git push -f *)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "DB_CMD=$(jq -r '.tool_input.command'); echo \"$DB_CMD\" | grep -qiE '(DROP[[:space:]]+(TABLE|DATABASE|SCHEMA)|TRUNCATE[[:space:]]+|DELETE[[:space:]]+FROM)' && printf '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"ask\",\"permissionDecisionReason\":\"Destructive database operation detected — requires your approval\"}}' || true",
+            "statusMessage": "Scanning for destructive database operations..."
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "PROJECT=\"/home/hiway-media/projects/gitlab.com/notification system\"; FILE=$(jq -r '.tool_input.file_path // empty'); [ -z \"$FILE\" ] && exit 0; case \"$FILE\" in \"$PROJECT\"/*|./*|[^/]*) exit 0 ;; /*) printf '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Changes outside the project directory are not allowed\"}}' ;; esac",
+            "statusMessage": "Verifying file is within project..."
+          }
+        ]
+      }
+    ]
+  }
+}

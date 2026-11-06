@@ -19,7 +19,7 @@ config.local.yaml
 # internal/gen/
 
 # Claude Code
-.claude/
+.claude/settings.local.json
 
 # Internal planning docs (not for public repo)
 case_study.md
