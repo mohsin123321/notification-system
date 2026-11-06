@@ -336,8 +336,6 @@ DB migrations. `infra/postgres/` repository. Idempotency check in service. Outbo
 
 **Unit tests:** idempotency check in service — mock repo returns existing notification on `GetByIdempotencyKey`, assert service returns it without calling `Save`.
 
-**Integration tests** (testcontainers Postgres): `Save()` writes notification + deliveries + outbox in one transaction, `GetByIdempotencyKey` returns existing on duplicate key, concurrent `Save` with same key — only one row created.
-
 ---
 
 ### Step 5 — Async Delivery
@@ -350,8 +348,6 @@ DB migrations. `infra/postgres/` repository. Idempotency check in service. Outbo
 - Email worker — fake provider with 0% failure rate, assert result event published with `SENT` status
 - SMS worker — same pattern as email worker
 
-**Integration tests** (testcontainers Postgres + RabbitMQ): full end-to-end `SendNotification` → `SENT` delivery row. Outbox relay crash test: publisher killed after publish but before mark — redelivery does not double-send.
-
 ---
 
 ### Step 6 — Reliability
@@ -362,8 +358,6 @@ Retry tiers, DLQ. Result events on `notification.events` exchange. Result worker
 **Unit tests:**
 - `StatusWatcher` — subscribe, publish event, assert subscriber receives it; unsubscribe, assert no further events; concurrent subscribers under `go test -race`
 - Result worker — mock repo `UpdateDeliveryStatus` called with correct status on `SENT` event and `FAILED` event
-
-**Integration tests** (testcontainers): provider at 100% failure rate, assert delivery reaches `DEAD` after N attempts and message lands in DLQ. Status stream test: client streams `WatchNotificationStatus`, assert every transition arrives in order.
 
 ---
 
@@ -376,8 +370,6 @@ inapp-worker (AMQP → amq.topic). Device simulator: 100 goroutines, MQTT QoS 1,
 - Inapp worker — assert AMQP publish uses correct routing key format `users.{userId}.notifications`
 - Device simulator — goroutine connects, receives message, disconnects cleanly
 
-**Integration tests** (RabbitMQ with MQTT plugin): disconnect device, send 5 notifications, reconnect, assert all 5 arrive in order. Retained badge: fresh connect receives current unread count without a new message being sent.
-
 ---
 
 ### Step 8 — Hardening
@@ -389,12 +381,33 @@ Priority queues (`q.email.high` / `q.email.low`). gRPC interceptors (logging, re
 - Logging interceptor — assert request ID is set in outgoing context
 - `lifecycle.Manager` — start order, stop reverse order, stop called on all components even if one errors
 
-**Integration tests**: graceful shutdown — SIGTERM while 10 in-flight messages, assert zero message loss. Priority test — send 100 marketing + 10 password_reset concurrently, assert password_reset deliveries complete before marketing.
-
 ---
 
 ### Step 9 — Integration Test Suite
-Full failure scenario coverage using `testcontainers-go` (Postgres + RabbitMQ). Each scenario from the failure table maps to one test.
+Full coverage using `testcontainers-go` (Postgres + RabbitMQ). All integration tests from every step live here — nothing in steps 1–8 requires a real container.
+
+**Repository (Postgres):**
+- `Save()` writes notification + deliveries + outbox in one transaction
+- `GetByIdempotencyKey` returns existing row on duplicate key
+- Concurrent `Save` with same key — only one row created
+
+**Async delivery (Postgres + RabbitMQ):**
+- Full end-to-end `SendNotification` → `SENT` delivery row
+- Outbox relay crash test: publisher killed after publish but before mark — redelivery does not double-send
+
+**Reliability:**
+- Provider at 100% failure rate → delivery reaches `DEAD` after N attempts, message lands in DLQ
+- Client streams `WatchNotificationStatus` → every status transition arrives in order
+
+**MQTT (RabbitMQ with MQTT plugin):**
+- Disconnect device, send 5 notifications, reconnect → all 5 arrive in order
+- Retained badge: fresh connect receives current unread count without a new message being sent
+
+**Hardening:**
+- Graceful shutdown: SIGTERM while 10 in-flight messages → zero message loss
+- Priority: send 100 marketing + 10 password_reset concurrently → password_reset deliveries complete first
+
+**Failure scenarios (from README table):**
 
 | Scenario | Test |
 |---|---|
@@ -406,7 +419,7 @@ Full failure scenario coverage using `testcontainers-go` (Postgres + RabbitMQ). 
 | Device offline | Messages queued, all delivered on reconnect |
 | 2 outbox relays running | Each outbox row published exactly once |
 
-**Done when:** `make test` is green. `make test-race` is green. All 7 scenarios pass against real containers.
+**Done when:** `make test` is green. `make test-race` is green. All scenarios pass against real containers.
 
 ---
 

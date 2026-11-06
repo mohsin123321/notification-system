@@ -187,7 +187,7 @@ This project is actively being built. Current progress:
 - [x] Step 1 — Foundation: repo layout, protos, docker-compose, lifecycle
 - [x] Step 2 — Domain model: pure types, port interfaces, policy functions
 - [x] Step 3 — Sync path: gateway → notifier → users over gRPC (in-memory)
-- [x] Step 4 — Persistence + idempotency: GORM models, Postgres repository, outbox pattern (wiring in progress)
+- [ ] Step 4 — Persistence + idempotency: wire Postgres + RabbitMQ into notifier, idempotency unit test
 - [ ] Step 5 — Async delivery: RabbitMQ outbox relay, email + SMS workers
 - [ ] Step 6 — Reliability: retry tiers, DLQ, result events, status stream
 - [ ] Step 7 — In-app + MQTT: inapp-worker, device simulator (100 goroutines)
