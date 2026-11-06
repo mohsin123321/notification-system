@@ -330,9 +330,9 @@ users-service with in-memory preferences. notification-service with in-memory re
 ---
 
 ### Step 4 — Persistence + Idempotency
-DB migrations. `infra/postgres/` repository. Idempotency check in service. Outbox table written atomically in `Save()`.
+Wire `infra/postgres/` repository and `infra/rabbit/` publisher into `cmd/notifier`. GORM AutoMigrate creates tables on startup. Outbox rows written atomically inside `Save()`. RabbitMQ publisher wired so the outbox worker can publish in Step 5.
 
-**Done when:** a repeated `POST` with the same `Idempotency-Key` header returns the same notification ID. DB rows exist with correct delivery statuses.
+**Done when:** a repeated `POST` with the same `Idempotency-Key` header returns the same notification ID. DB rows exist in `notifications`, `deliveries`, and `outbox` with correct statuses.
 
 **Unit tests:** idempotency check in service — mock repo returns existing notification on `GetByIdempotencyKey`, assert service returns it without calling `Save`.
 
