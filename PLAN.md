@@ -322,11 +322,6 @@ users-service with in-memory preferences. notification-service with in-memory re
 
 **Done when:** `POST /v1/notifications` returns 202 with a channel decision (active or suppressed) per channel.
 
-**Unit tests:**
-- HTTP handler — valid request returns 202, missing body returns 400, missing idempotency key returns 400
-- Notification service — `SendNotification` with mocked `PreferenceClient` and `NotificationRepository`, assert correct channels decided
-- Preference service — `GetPreferences` returns correct channel settings from in-memory store
-
 ---
 
 ### Step 4 — Persistence + Idempotency
