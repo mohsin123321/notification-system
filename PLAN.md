@@ -331,6 +331,8 @@ Wire `infra/postgres/` repository and `infra/rabbit/` publisher into `cmd/notifi
 
 **Unit tests:** idempotency check in service — mock repo returns existing notification on `GetByIdempotencyKey`, assert service returns it without calling `Save`.
 
+Run `make test` to verify all service tests pass before marking this step done.
+
 ---
 
 ### Step 5 — Async Delivery
